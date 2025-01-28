@@ -5,10 +5,10 @@ such as thrust, fuel efficiency, and other important performance metrics for eas
 
 Getting Started
 
-1. **How to clone**
-2. 
-    git clone https://github.com/Elexs1zz/FlarePie.git
-    cd FlarePie
+  **How to clone**
+ 
+[git clone https://github.com/Elexs1zz/FlarePie.git]
+[cd FlarePie]
 
 3. Flarepie uses critical parameters like thrust, velocity,torque etc. along with enchaned equations, This way users can evaluate their design performances.
 
