@@ -1,6 +1,9 @@
 # FlarePie
 Open-Source Command Line Rocket Engine Simulation Tool
 
-FlarePie is an open sourced rocket engine simulator/calculator designed to help hobbyists,designers,engineers and enthusiasts analyze and calculate their propulsion systems.
-FlarePie offers critical parameters for complex calculations and most precise results, like thrust,torque,pressures etc. Flarepie also provides users with the tools to simulate
-and develop their rocket engine designs.Making it ideal for beginners and advanced users.
+![resim](https://github.com/user-attachments/assets/42368d5a-335a-4464-8ed2-ac282dfb0b06)
+
+Flarepie is a robust and user-friendly Rocket Engine Simulation Tool for beginners, hobbyists and enthusiasts. Enabling users to calculate
+Nozzle Performances and simulating rocket engine behaviours.Flarepie provides accurate and reliable results to its users projects.Simplify
+your rocket engine calculations and enhance it using Flarepie, the tool for rocket enthusiasts and professionals.
+
