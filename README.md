@@ -1,5 +1,6 @@
 # FlarePie
 Open-Source Command Line Rocket Engine Simulation Tool
+
 ![Flarepie_logo](https://github.com/user-attachments/assets/54f17e33-bc05-4ec0-a705-84ed7e7456ad)
 
 
