@@ -3,6 +3,7 @@
 Flarepie is a open-sourced project and we are waiting for your contributions! 🎉
 
 You can support Flarepie by contributing in the following areas: 
+
 🛠 **Bug Fixes**
 🚀 **New Features**
 ⚡ **Optimization**
