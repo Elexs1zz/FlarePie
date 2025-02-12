@@ -53,7 +53,7 @@ This will push the branch to the repository in your GitHub account.
 
 Do you have any questions? Feel free to contact me!
 
-**E-mail:** [elexsizz@gmail.com]
+**E-mail:** [elexsizz1@gmail.com]
 
 **Discussions** [https://github.com/Elexs1zz/FlarePie/discussions]
 
