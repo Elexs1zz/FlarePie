@@ -8,7 +8,7 @@ Open-Source  Rocket Engine Simulation Tool
 
 ## Advanced Rocket Engine Simulation Tool
 
-![FlarePie Demo](flarepie.gif)
+![FlarePie Demo](Flarepie.gif)
 
 FlarePie is a sophisticated Python-based simulation tool designed for rocket engine analysis and performance prediction. This high-performance software provides rocket propulsion modeling in an easy-to-use platform for engineers and researchers leveraging Python's advanced scientific computing and visualization capabilities.
 
