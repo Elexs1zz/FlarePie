@@ -22,14 +22,6 @@ FlarePie is a sophisticated Python-based simulation tool designed for rocket eng
 - 📈 **Visualization Tools**: Create comprehensive data visualizations of the simulated results
 - 🧩 **Extensible Architecture**: It is easy to add new simulation modules and components  [Working On It ⏳]
 
-### 💻 Technical Implementation
-
-FlarePie is developed fully in Python, based on some of the most robust libraries:
-- **NumPy**: For scientific computing and numerical computations
-- **Matplotlib**: For interactive plots and data visualization
-
-- 
-
 ### 🎯 Use Cases
 
 - 🏭 Rocket engine design and development
