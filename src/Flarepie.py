@@ -10,7 +10,7 @@ import csv
 from datetime import datetime
 import time
 import os
-from Engine import rocket_simulation, nozzle_performance, get_atmospheric_pressure
+from Engine import rocket_simulation, nozzle_performance, get_atmospheric_pressure, rocket_simulation_3dof
 from config import config
 from project_manager import ProjectManager, SimulationConfig
 from advanced_engine import AdvancedRocketEngine, Stage, OrbitalMechanics, ThermalAnalysis
@@ -317,11 +317,69 @@ class FlarePieApp:
         ttk.Label(options_tab, text="Wind Direction (deg from N):").grid(row=9, column=0, sticky='w', padx=6, pady=3)
         self.wind_dir_var = tk.StringVar(value="0.0")
         ttk.Entry(options_tab, textvariable=self.wind_dir_var, width=10).grid(row=9, column=1, padx=6, pady=3)
-        ttk.Button(options_tab, text="Open Engine/Nozzle Designer", command=self.open_nozzle_designer).grid(row=2, column=0, columnspan=2, sticky='ew', padx=6, pady=8)
-        ttk.Button(options_tab, text="Reset to Defaults", command=self.load_default_config).grid(row=3, column=0, columnspan=2, sticky='ew', padx=6, pady=8)
-        ttk.Button(options_tab, text="Run Rocket Simulation", command=self.run_rocket_simulation, style="Accent.TButton").grid(row=4, column=0, columnspan=2, sticky='ew', padx=6, pady=8)
-        ttk.Button(options_tab, text="Run Nozzle Analysis", command=self.run_nozzle_analysis).grid(row=5, column=0, columnspan=2, sticky='ew', padx=6, pady=2)
-        ttk.Button(options_tab, text="Stop Animation", command=self.stop_animation).grid(row=6, column=0, columnspan=2, sticky='ew', padx=6, pady=2)
+
+        ttk.Separator(options_tab, orient=tk.HORIZONTAL).grid(row=10, column=0, columnspan=2, sticky='ew', pady=4)
+
+        # --- 3-DOF options ---
+        ttk.Label(options_tab, text="Sim Mode:").grid(row=11, column=0, sticky='w', padx=6, pady=3)
+        self.sim_mode_var = tk.StringVar(value="1-DOF (Legacy)")
+        sim_mode_cb = ttk.Combobox(
+            options_tab, textvariable=self.sim_mode_var,
+            values=["1-DOF (Legacy)", "3-DOF"], state="readonly", width=14
+        )
+        sim_mode_cb.grid(row=11, column=1, padx=6, pady=3)
+        self._add_tooltip(sim_mode_cb, "Choose 1-DOF (legacy vertical) or 3-DOF (full ENU vector) simulation")
+
+        ttk.Label(options_tab, text="Thrust Source:").grid(row=12, column=0, sticky='w', padx=6, pady=3)
+        self.thrust_mode_var = tk.StringVar(value="Analytical (Legacy)")
+        thrust_mode_cb = ttk.Combobox(
+            options_tab, textvariable=self.thrust_mode_var,
+            values=["Analytical (Legacy)", "Thrust Curve CSV"], state="readonly", width=14
+        )
+        thrust_mode_cb.grid(row=12, column=1, padx=6, pady=3)
+        self._add_tooltip(thrust_mode_cb, "Use analytical thermodynamic thrust or load a thrust curve from a CSV file")
+
+        ttk.Label(options_tab, text="Thrust CSV:").grid(row=13, column=0, sticky='w', padx=6, pady=3)
+        self.thrust_csv_label_var = tk.StringVar(value="(none)")
+        self.thrust_csv_path = None
+        ttk.Label(options_tab, textvariable=self.thrust_csv_label_var, width=14,
+                  relief="sunken", anchor="w").grid(row=13, column=1, padx=6, pady=3)
+
+        def _browse_thrust_csv():
+            path = filedialog.askopenfilename(
+                title="Select Thrust Curve CSV",
+                filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            )
+            if path:
+                self.thrust_csv_path = path
+                self.thrust_csv_label_var.set(os.path.basename(path))
+                self.thrust_mode_var.set("Thrust Curve CSV")
+
+        ttk.Button(options_tab, text="Browse…", command=_browse_thrust_csv).grid(
+            row=14, column=0, columnspan=2, sticky='ew', padx=6, pady=2)
+
+        ttk.Label(options_tab, text="Launch Inclination (°):").grid(row=15, column=0, sticky='w', padx=6, pady=3)
+        self.inclination_var = tk.StringVar(value="90")
+        ttk.Entry(options_tab, textvariable=self.inclination_var, width=10).grid(row=15, column=1, padx=6, pady=3)
+        self._add_tooltip(
+            options_tab.grid_slaves(row=15, column=0)[0] if options_tab.grid_slaves(row=15, column=0) else options_tab,
+            "Launch elevation angle: 90 = vertical, 0 = horizontal (3-DOF only)"
+        )
+
+        ttk.Label(options_tab, text="Launch Heading (°):").grid(row=16, column=0, sticky='w', padx=6, pady=3)
+        self.heading_var = tk.StringVar(value="0")
+        ttk.Entry(options_tab, textvariable=self.heading_var, width=10).grid(row=16, column=1, padx=6, pady=3)
+        self._add_tooltip(
+            options_tab.grid_slaves(row=16, column=0)[0] if options_tab.grid_slaves(row=16, column=0) else options_tab,
+            "Launch compass heading: 0 = North, 90 = East (3-DOF only)"
+        )
+
+        ttk.Separator(options_tab, orient=tk.HORIZONTAL).grid(row=17, column=0, columnspan=2, sticky='ew', pady=4)
+        ttk.Button(options_tab, text="Open Engine/Nozzle Designer", command=self.open_nozzle_designer).grid(row=18, column=0, columnspan=2, sticky='ew', padx=6, pady=8)
+        ttk.Button(options_tab, text="Reset to Defaults", command=self.load_default_config).grid(row=19, column=0, columnspan=2, sticky='ew', padx=6, pady=8)
+        ttk.Button(options_tab, text="Run Rocket Simulation", command=self.run_rocket_simulation, style="Accent.TButton").grid(row=20, column=0, columnspan=2, sticky='ew', padx=6, pady=8)
+        ttk.Button(options_tab, text="Run Nozzle Analysis", command=self.run_nozzle_analysis).grid(row=21, column=0, columnspan=2, sticky='ew', padx=6, pady=2)
+        ttk.Button(options_tab, text="Stop Animation", command=self.stop_animation).grid(row=22, column=0, columnspan=2, sticky='ew', padx=6, pady=2)
         stability_tab = ttk.Frame(notebook)
         notebook.add(stability_tab, text="Stability Analysis")
         ttk.Label(stability_tab, text="Body Length (m):").grid(row=0, column=0, sticky='w', padx=6, pady=3)
@@ -616,6 +674,67 @@ class FlarePieApp:
                 return
 
             self.status_var.set("Running simulation...")
+
+            # ------------------------------------------------------------------
+            # Route to 3-DOF simulator when selected
+            # ------------------------------------------------------------------
+            if self.sim_mode_var.get() == "3-DOF":
+                thrust_csv = None
+                if self.thrust_mode_var.get() == "Thrust Curve CSV":
+                    if not self.thrust_csv_path:
+                        messagebox.showerror(
+                            "Input Error",
+                            "Please select a Thrust Curve CSV file in the Options tab."
+                        )
+                        self.status_var.set("Simulation failed")
+                        return
+                    thrust_csv = self.thrust_csv_path
+
+                try:
+                    inclination = float(self.inclination_var.get())
+                    heading = float(self.heading_var.get())
+                    wind_ground = float(self.wind_ground_var.get())
+                    wind_alt_val = float(self.wind_alt_var.get())
+                    wind_dir = float(self.wind_dir_var.get())
+                except ValueError:
+                    inclination, heading = 90.0, 0.0
+                    wind_ground, wind_alt_val, wind_dir = 0.0, 0.0, 0.0
+
+                results = rocket_simulation_3dof(
+                    fuel_type=fuel_type,
+                    cocp=cocp,
+                    ct=ct,
+                    altitude=altitude,
+                    intmass=intmass,
+                    propmass=propmass,
+                    mfr=mfr,
+                    dt=dt,
+                    reference_area=reference_area,
+                    inclination_deg=inclination,
+                    heading_deg=heading,
+                    wind_ground=wind_ground,
+                    wind_alt=wind_alt_val,
+                    wind_dir_deg=wind_dir,
+                    thrust_csv_path=thrust_csv,
+                )
+
+                if "error" in results:
+                    messagebox.showerror("Simulation Error", results["error"])
+                    self.status_var.set("Simulation failed")
+                    return
+
+                results["failure_event_idx"] = None
+                results["abort_event_idx"] = None
+                self.simulation_data = results
+                self.update_static_charts(results)
+                self.update_data_view(results)
+                if self.animate_var.get():
+                    self.start_animation(results)
+                if self.save_var.get():
+                    self.save_results(results)
+                self.status_var.set("3-DOF simulation complete")
+                return
+            # ------------------------------------------------------------------
 
             from Engine import get_atmospheric_pressure, calculate_drag
             k, R = {"RP1": (1.2, 287.0), "LH2": (1.4, 4124.0), "SRF": (1.2, 191.0), "N2O4": (1.26, 320.0)}[fuel_type]
@@ -1267,28 +1386,63 @@ class FlarePieApp:
             pass
         fig = Figure(figsize=(8, 6))
         ax = fig.add_subplot(111, projection='3d')
-        time_data = self.simulation_data['time']
-        altitude_data = self.simulation_data['altitude']
-        velocity_data = self.simulation_data['velocity']
-        line, = ax.plot([], [], [], color='cyan', linewidth=2)
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Velocity (m/s)')
-        ax.set_zlabel('Altitude (m)')  # type: ignore[attr-defined]
-        ax.set_title('3D Trajectory (Time, Velocity, Altitude)')
-        ax.grid(True)
-        ax.set_xlim(float(min(time_data)), float(max(time_data)))
-        ax.set_ylim(float(min(velocity_data)), float(max(velocity_data)))
-        ax.set_zlim(float(min(altitude_data)), float(max(altitude_data)))  # type: ignore[attr-defined]
-        canvas = FigureCanvasTkAgg(fig, master=win)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-        def animate(i):
-            idx = max(1, int(len(time_data) * i / 100))
-            line.set_data(time_data[:idx], velocity_data[:idx])
-            line.set_3d_properties(altitude_data[:idx])  # type: ignore[attr-defined]
-            return line,
-        anim = FuncAnimation(fig, animate, frames=100, interval=50, blit=True, repeat=False)
-        canvas.draw()
+
+        # Use real 3-D position data if available (3-DOF mode)
+        if self.simulation_data.get("position"):
+            pos = self.simulation_data["position"]
+            x_data = [p[0] for p in pos]
+            y_data = [p[1] for p in pos]
+            z_data = [p[2] for p in pos]
+            ax.set_xlabel('East (m)')
+            ax.set_ylabel('North (m)')
+            ax.set_zlabel('Altitude (m)')  # type: ignore[attr-defined]
+            ax.set_title('3D Trajectory (ENU Frame)')
+            x_min, x_max = min(x_data), max(x_data)
+            y_min, y_max = min(y_data), max(y_data)
+            z_min, z_max = min(z_data), max(z_data)
+            # Avoid degenerate limits
+            if x_min == x_max:
+                x_min, x_max = x_min - 1, x_max + 1
+            if y_min == y_max:
+                y_min, y_max = y_min - 1, y_max + 1
+            ax.set_xlim(x_min, x_max)
+            ax.set_ylim(y_min, y_max)
+            ax.set_zlim(z_min, z_max)  # type: ignore[attr-defined]
+            line, = ax.plot([], [], [], color='cyan', linewidth=2)
+            canvas = FigureCanvasTkAgg(fig, master=win)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            def animate_3d(i):
+                idx = max(1, int(len(x_data) * i / 100))
+                line.set_data(x_data[:idx], y_data[:idx])
+                line.set_3d_properties(z_data[:idx])  # type: ignore[attr-defined]
+                return line,
+            FuncAnimation(fig, animate_3d, frames=100, interval=50, blit=True, repeat=False)
+            canvas.draw()
+        else:
+            # Legacy fallback: axes are time / velocity / altitude
+            time_data = self.simulation_data['time']
+            altitude_data = self.simulation_data['altitude']
+            velocity_data = self.simulation_data['velocity']
+            line, = ax.plot([], [], [], color='cyan', linewidth=2)
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel('Velocity (m/s)')
+            ax.set_zlabel('Altitude (m)')  # type: ignore[attr-defined]
+            ax.set_title('3D Trajectory (Time, Velocity, Altitude)')
+            ax.grid(True)
+            ax.set_xlim(float(min(time_data)), float(max(time_data)))
+            ax.set_ylim(float(min(velocity_data)), float(max(velocity_data)))
+            ax.set_zlim(float(min(altitude_data)), float(max(altitude_data)))  # type: ignore[attr-defined]
+            canvas = FigureCanvasTkAgg(fig, master=win)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            def animate(i):
+                idx = max(1, int(len(time_data) * i / 100))
+                line.set_data(time_data[:idx], velocity_data[:idx])
+                line.set_3d_properties(altitude_data[:idx])  # type: ignore[attr-defined]
+                return line,
+            FuncAnimation(fig, animate, frames=100, interval=50, blit=True, repeat=False)
+            canvas.draw()
 
     def show_performance_dashboard(self):
         if not self.simulation_data:
