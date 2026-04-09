@@ -15,7 +15,7 @@ from config import config
 from project_manager import ProjectManager, SimulationConfig
 from advanced_engine import AdvancedRocketEngine, Stage, OrbitalMechanics, ThermalAnalysis
 from report_generator import ReportGenerator
-from mpl_toolkits.mplot3d import Axes3D  # For 3D plotting
+from mpl_toolkits.mplot3d import Axes3D  
 import math
 import urllib.request
 import sys
