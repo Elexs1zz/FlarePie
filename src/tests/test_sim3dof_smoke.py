@@ -37,7 +37,7 @@ def _check(name, results):
     print(f"  [{name}]  steps={len(results['time'])}  "
           f"max_alt={max_alt:.1f} m  max_speed={max_spd:.1f} m/s  "
           f"delta_v={results['delta_v']:.1f} m/s  "
-          f"burn_time={results['final_time']:.2f} s")
+          f"final_time={results['final_time']:.2f} s")
     assert max_alt > 0, f"{name}: max altitude should be positive"
     assert max_spd >= 0, f"{name}: max speed should be non-negative"
     assert "position" in results, f"{name}: missing 'position' key"

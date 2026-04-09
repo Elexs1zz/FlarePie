@@ -361,8 +361,9 @@ def simulate_3dof(
         # ISP
         isp = ve_exhaust / G_ACCEL if ve_exhaust > 0 else 0.0
 
-        # Delta-V (velocity magnitude increase)
-        delta_v_step = max(0.0, V_new - V)
+        # Delta-V: accumulate thrust-derived impulse per unit mass (rocket equation rate).
+        # This gives the ideal propulsive delta-V, independent of gravity/drag losses.
+        delta_v_step = (thrust / current_mass) * dt if current_mass > 0 else 0.0
         delta_v += delta_v_step
 
         # Mechanical energy

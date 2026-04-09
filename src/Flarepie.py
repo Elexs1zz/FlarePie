@@ -358,21 +358,17 @@ class FlarePieApp:
         ttk.Button(options_tab, text="Browse…", command=_browse_thrust_csv).grid(
             row=14, column=0, columnspan=2, sticky='ew', padx=6, pady=2)
 
-        ttk.Label(options_tab, text="Launch Inclination (°):").grid(row=15, column=0, sticky='w', padx=6, pady=3)
+        lbl_inclination = ttk.Label(options_tab, text="Launch Inclination (°):")
+        lbl_inclination.grid(row=15, column=0, sticky='w', padx=6, pady=3)
         self.inclination_var = tk.StringVar(value="90")
         ttk.Entry(options_tab, textvariable=self.inclination_var, width=10).grid(row=15, column=1, padx=6, pady=3)
-        self._add_tooltip(
-            options_tab.grid_slaves(row=15, column=0)[0] if options_tab.grid_slaves(row=15, column=0) else options_tab,
-            "Launch elevation angle: 90 = vertical, 0 = horizontal (3-DOF only)"
-        )
+        self._add_tooltip(lbl_inclination, "Launch elevation angle: 90 = vertical, 0 = horizontal (3-DOF only)")
 
-        ttk.Label(options_tab, text="Launch Heading (°):").grid(row=16, column=0, sticky='w', padx=6, pady=3)
+        lbl_heading = ttk.Label(options_tab, text="Launch Heading (°):")
+        lbl_heading.grid(row=16, column=0, sticky='w', padx=6, pady=3)
         self.heading_var = tk.StringVar(value="0")
         ttk.Entry(options_tab, textvariable=self.heading_var, width=10).grid(row=16, column=1, padx=6, pady=3)
-        self._add_tooltip(
-            options_tab.grid_slaves(row=16, column=0)[0] if options_tab.grid_slaves(row=16, column=0) else options_tab,
-            "Launch compass heading: 0 = North, 90 = East (3-DOF only)"
-        )
+        self._add_tooltip(lbl_heading, "Launch compass heading: 0 = North, 90 = East (3-DOF only)")
 
         ttk.Separator(options_tab, orient=tk.HORIZONTAL).grid(row=17, column=0, columnspan=2, sticky='ew', pady=4)
         ttk.Button(options_tab, text="Open Engine/Nozzle Designer", command=self.open_nozzle_designer).grid(row=18, column=0, columnspan=2, sticky='ew', padx=6, pady=8)
