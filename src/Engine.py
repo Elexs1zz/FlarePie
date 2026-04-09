@@ -197,6 +197,50 @@ def nozzle_performance(mfr, ve, expa, amp, ea):
     }
 
 
+def rocket_simulation_3dof(
+    fuel_type, cocp, ct, altitude, intmass, propmass, mfr, dt,
+    reference_area=1.0,
+    inclination_deg=90.0,
+    heading_deg=0.0,
+    wind_ground=0.0,
+    wind_alt=0.0,
+    wind_dir_deg=0.0,
+    thrust_csv_path=None,
+    max_time=None,
+):
+    """
+    Adapter that runs a 3-DOF simulation via sim3dof.simulate_3dof and returns
+    the same result-dict schema expected by the UI.
+
+    The 'velocity' key contains speed magnitude and 'altitude' contains the
+    z-component, so all existing UI charts continue to work unchanged.
+    Extra keys 'position' and 'velocity_vector' are added for 3-D plotting.
+    """
+    from sim3dof import simulate_3dof
+
+    kwargs = dict(
+        fuel_type=fuel_type,
+        cocp=cocp,
+        ct=ct,
+        intmass=intmass,
+        propmass=propmass,
+        mfr=mfr,
+        dt=dt,
+        initial_altitude=altitude,
+        reference_area=reference_area,
+        inclination_deg=inclination_deg,
+        heading_deg=heading_deg,
+        wind_ground=wind_ground,
+        wind_alt=wind_alt,
+        wind_dir_deg=wind_dir_deg,
+        thrust_csv_path=thrust_csv_path,
+    )
+    if max_time is not None:
+        kwargs["max_time"] = max_time
+
+    return simulate_3dof(**kwargs)
+
+
 def generate_atmosphere_profile(max_altitude=100000, steps=100):
     altitudes = np.linspace(0, max_altitude, steps)
     pressures = [get_atmospheric_pressure(alt) for alt in altitudes]
