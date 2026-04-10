@@ -1,28 +1,3 @@
-"""
-3-DOF point-mass rocket flight dynamics simulation.
-
-State vector: position (x, y, z) and velocity (vx, vy, vz) in a local ENU frame.
-  x = East  (m)
-  y = North (m)
-  z = Up    (m) — altitude above launch point origin
-
-Physics:
-  - Gravity: constant g = 9.80665 m/s^2 in -z direction.
-  - Atmosphere: exponential density model (consistent with Engine.py).
-  - Drag: D = 0.5 * rho * V_rel^2 * Cd(Mach) * A, opposing relative airspeed.
-  - Wind: linear increase with altitude from ground value to altitude value.
-  - Thrust: fixed direction defined by launch inclination and heading angles.
-  - Mass: depletes at constant mass_flow_rate until propellant exhausted.
-  - Thrust curve: optionally loaded from a CSV file (time_s, thrust_n columns).
-
-Output dict is compatible with the existing UI result schema:
-  time, thrust, fuel_remaining, mass_flow, velocity (speed magnitude),
-  altitude (z), isp_values, drag (magnitude), acceleration (magnitude), energy,
-  final_time, initial_thrust, delta_v, simulation_complete.
-Extra outputs (for future 3-D plotting):
-  position      — list of [x, y, z] at each step
-  velocity_vector — list of [vx, vy, vz] at each step
-"""
 
 import csv as _csv_module
 import logging
@@ -30,19 +5,14 @@ import math
 
 import numpy as np
 
-# Physical constants
-G_ACCEL = 9.80665   # m/s^2
-RHO0 = 1.225        # kg/m^3 sea-level air density
-H_SCALE = 8500.0    # density scale height (m)
-P0 = 101325.0       # sea-level pressure (Pa)
+G_ACCEL = 9.80665   
+RHO0 = 1.225        
+H_SCALE = 8500.0    
+P0 = 101325.0       
 
 
-# ---------------------------------------------------------------------------
-# Atmosphere helpers (consistent with Engine.py)
-# ---------------------------------------------------------------------------
 
 def _air_density(altitude: float) -> float:
-    """Exponential atmosphere density model."""
     alt = max(0.0, altitude)
     if alt > 1e6:
         return 0.0
@@ -53,7 +23,6 @@ def _air_density(altitude: float) -> float:
 
 
 def _atm_pressure(altitude: float) -> float:
-    """ISA-approximate pressure model (matches Engine.get_atmospheric_pressure)."""
     alt = max(0.0, altitude)
     lapse_rate = 2.25577e-5
     exponent = 5.25588
@@ -62,7 +31,6 @@ def _atm_pressure(altitude: float) -> float:
 
 
 def _cd_from_mach(mach: float) -> float:
-    """Simple Mach-dependent drag coefficient (matches Engine.calculate_drag)."""
     if mach < 0.8:
         return 0.3
     elif mach < 1.1:
@@ -71,21 +39,10 @@ def _cd_from_mach(mach: float) -> float:
         return 0.6 - 0.1 * min(mach - 1.1, 0.4)
 
 
-# ---------------------------------------------------------------------------
-# Thrust-curve CSV loader
-# ---------------------------------------------------------------------------
+
 
 def load_thrust_csv(csv_path: str):
-    """
-    Load a thrust curve CSV file.
-
-    Expected format: two columns (time_s, thrust_n) with an optional header row.
-    Rows whose first column cannot be parsed as a float (e.g. header text) are
-    silently skipped.
-
-    Returns (times_array, thrusts_array) as 1-D numpy arrays.
-    Raises ValueError if the file contains no valid numeric rows.
-    """
+    
     times = []
     thrusts = []
     with open(csv_path, newline='') as f:
@@ -99,7 +56,7 @@ def load_thrust_csv(csv_path: str):
                 times.append(t_val)
                 thrusts.append(th_val)
             except ValueError:
-                continue  # skip header / non-numeric rows
+                continue  
 
     if not times:
         raise ValueError(f"No valid numeric data found in thrust CSV: {csv_path}")
@@ -107,87 +64,40 @@ def load_thrust_csv(csv_path: str):
     return np.array(times, dtype=float), np.array(thrusts, dtype=float)
 
 
-# ---------------------------------------------------------------------------
-# Geometry helper
-# ---------------------------------------------------------------------------
+
 
 def _thrust_direction(inclination_deg: float, heading_deg: float):
-    """
-    Return a unit thrust-direction vector in the ENU frame.
-
-    inclination_deg : angle above the horizon (90 = straight up, 0 = horizontal).
-    heading_deg     : compass bearing of the horizontal projection
-                      (0 = North, 90 = East).
-    """
+   
     inc_rad = math.radians(inclination_deg)
     head_rad = math.radians(heading_deg)
     tz = math.sin(inc_rad)
     horiz = math.cos(inc_rad)
-    tx = horiz * math.sin(head_rad)   # East
-    ty = horiz * math.cos(head_rad)   # North
+    tx = horiz * math.sin(head_rad)   
+    ty = horiz * math.cos(head_rad)   
     return (tx, ty, tz)
 
 
-# ---------------------------------------------------------------------------
-# Main simulation function
-# ---------------------------------------------------------------------------
-
 def simulate_3dof(
-    # Propellant / engine
+    
     fuel_type: str,
     cocp: float,
     ct: float,
     intmass: float,
     propmass: float,
     mfr: float,
-    # Numerics
     dt: float = 0.1,
     initial_altitude: float = 0.0,
     reference_area: float = 1.0,
     max_time: float = 10000.0,
-    # Launch geometry
     inclination_deg: float = 90.0,
     heading_deg: float = 0.0,
-    # Wind
     wind_ground: float = 0.0,
     wind_alt: float = 0.0,
     wind_dir_deg: float = 0.0,
     wind_ref_altitude: float = 10000.0,
-    # Optional thrust-curve CSV
     thrust_csv_path=None,
 ):
-    """
-    Run a 3-DOF point-mass rocket simulation using RK4 integration.
-
-    Parameters
-    ----------
-    fuel_type      : one of 'RP1', 'LH2', 'SRF', 'N2O4'
-    cocp           : chamber pressure (Pa)
-    ct             : combustion temperature (K)
-    intmass        : total initial mass (kg)
-    propmass       : propellant mass (kg)
-    mfr            : nominal mass flow rate (kg/s)
-    dt             : time step (s)
-    initial_altitude: launch altitude above sea level (m)
-    reference_area : aerodynamic reference area (m²)
-    max_time       : hard upper limit on simulation time (s)
-    inclination_deg: launch elevation angle (90 = vertical, 0 = horizontal)
-    heading_deg    : launch compass bearing, horizontal projection (0 = N, 90 = E)
-    wind_ground    : wind speed at ground level (m/s)
-    wind_alt       : wind speed at wind_ref_altitude (m/s)
-    wind_dir_deg   : direction the wind blows *toward* (0 = N, 90 = E)
-    wind_ref_altitude: altitude at which wind_alt applies (m)
-    thrust_csv_path: path to a CSV thrust curve, or None for analytical thrust
-
-    Returns
-    -------
-    dict with keys:
-      time, thrust, fuel_remaining, mass_flow, velocity (speed magnitude),
-      altitude (z), isp_values, drag (magnitude), acceleration (magnitude),
-      energy, final_time, initial_thrust, delta_v, simulation_complete,
-      position (list of [x,y,z]), velocity_vector (list of [vx,vy,vz]).
-    On error: {'error': <message>}.
-    """
+    
     fuel_properties = {
         "RP1": (1.2, 287.0),
         "LH2": (1.4, 4124.0),
@@ -199,53 +109,41 @@ def simulate_3dof(
 
     k, R = fuel_properties[fuel_type]
 
-    # --- Thrust curve setup ---
     use_csv_thrust = thrust_csv_path is not None
     if use_csv_thrust:
         csv_times, csv_thrusts = load_thrust_csv(thrust_csv_path)
 
-    # --- Fixed thrust direction (unit vector in ENU) ---
     td_x, td_y, td_z = _thrust_direction(inclination_deg, heading_deg)
 
-    # --- Wind direction components (wind blows *toward* wind_dir_deg) ---
     wind_dir_rad = math.radians(wind_dir_deg)
-    wind_sin = math.sin(wind_dir_rad)   # East
-    wind_cos = math.cos(wind_dir_rad)   # North
+    wind_sin = math.sin(wind_dir_rad)   
+    wind_cos = math.cos(wind_dir_rad)   
 
     def _wind_speed_at(alt):
-        """Linear wind profile."""
         if wind_ref_altitude <= 0:
             return wind_ground
         frac = min(max(alt, 0.0) / wind_ref_altitude, 1.0)
         return wind_ground + (wind_alt - wind_ground) * frac
 
     def _analytical_thrust(z_m):
-        """Thermodynamic thrust varying with ambient back-pressure."""
         ap = _atm_pressure(z_m)
         pr = (ap / cocp) ** ((k - 1.0) / k) if cocp > 0 else 0.0
         ve = math.sqrt(max(0.0, (2.0 * k) / (k - 1.0) * R * ct * (1.0 - pr)))
         return mfr * ve, ve
 
     def _deriv(state, thrust_mag, mass_now):
-        """
-        RHS of the EOM for RK4.
-        state = [x, y, z, vx, vy, vz]
-        Returns [dx/dt, dy/dt, dz/dt, d²x/dt², d²y/dt², d²z/dt²].
-        """
+    
         px, py, pz, pvx, pvy, pvz = state
 
-        # Wind at this altitude
         ws = _wind_speed_at(pz)
         wx_w = ws * wind_sin
         wy_w = ws * wind_cos
 
-        # Relative (air) velocity
         vrx = pvx - wx_w
         vry = pvy - wy_w
-        vrz = pvz              # no vertical wind component
+        vrz = pvz              
         V_rel = math.sqrt(vrx * vrx + vry * vry + vrz * vrz)
 
-        # Aerodynamic drag
         density = _air_density(pz)
         p_atm = _atm_pressure(pz)
         sos = 340.0 * math.sqrt(p_atm / P0) if p_atm > 0 else 1.0
@@ -261,7 +159,6 @@ def simulate_3dof(
         else:
             d_x = d_y = d_z = 0.0
 
-        # Thrust force
         fx = thrust_mag * td_x + d_x
         fy = thrust_mag * td_y + d_y
         fz = thrust_mag * td_z + d_z
@@ -272,20 +169,18 @@ def simulate_3dof(
                 fy * inv_m,
                 fz * inv_m - G_ACCEL]
 
-    # --- Initial state ---
     x, y, z = 0.0, 0.0, float(initial_altitude)
     vx, vy, vz = 0.0, 0.0, 0.0
     current_mass = float(intmass)
     prop_remaining = float(propmass)
     t = 0.0
 
-    # --- Output arrays ---
     time_steps = []
     thrust_values = []
     fuel_remaining = []
     mass_flow_values = []
-    velocity_values = []       # speed magnitude
-    altitude_values = []       # z
+    velocity_values = []       
+    altitude_values = []       
     isp_values = []
     drag_values = []
     acceleration_values = []
@@ -297,10 +192,9 @@ def simulate_3dof(
     initial_thrust = None
 
     while prop_remaining >= 0 and t < max_time:
-        # ---- Determine thrust and mass flow for this step ----
         if prop_remaining > 0:
             mass_used = min(mfr * dt, prop_remaining)
-            step_mfr = mass_used / dt   # effective mfr for this step
+            step_mfr = mass_used / dt   
 
             if use_csv_thrust:
                 thrust = float(np.interp(t, csv_times, csv_thrusts,
@@ -318,7 +212,7 @@ def simulate_3dof(
         if initial_thrust is None:
             initial_thrust = thrust
 
-        # ---- RK4 integration (6-state: x,y,z,vx,vy,vz) ----
+  
         state = [x, y, z, vx, vy, vz]
 
         k1 = _deriv(state, thrust, current_mass)
@@ -335,11 +229,11 @@ def simulate_3dof(
         ]
         x_n, y_n, z_n, vx_n, vy_n, vz_n = new_state
 
-        # ---- Derived quantities at the *current* step (before update) ----
+       
         V = math.sqrt(vx * vx + vy * vy + vz * vz)
         V_new = math.sqrt(vx_n * vx_n + vy_n * vy_n + vz_n * vz_n)
 
-        # Drag magnitude at current position / velocity
+       
         ws = _wind_speed_at(z)
         vrx = vx - ws * wind_sin
         vry = vy - ws * wind_cos
@@ -352,26 +246,20 @@ def simulate_3dof(
         cd_cur = _cd_from_mach(mach_num)
         drag_cur = 0.5 * density * V_rel * V_rel * cd_cur * reference_area
 
-        # Net acceleration magnitude
         accel_deriv = _deriv(state, thrust, current_mass)
         accel_mag = math.sqrt(accel_deriv[3] ** 2 +
                               accel_deriv[4] ** 2 +
                               accel_deriv[5] ** 2)
 
-        # ISP
         isp = ve_exhaust / G_ACCEL if ve_exhaust > 0 else 0.0
 
-        # Delta-V: accumulate thrust-derived impulse per unit mass (rocket equation rate).
-        # This gives the ideal propulsive delta-V, independent of gravity/drag losses.
         delta_v_step = (thrust / current_mass) * dt if current_mass > 0 else 0.0
         delta_v += delta_v_step
 
-        # Mechanical energy
         ke = 0.5 * current_mass * V * V
         pe = current_mass * G_ACCEL * z
         energy_values.append(ke + pe)
 
-        # ---- Record data ----
         time_steps.append(t)
         thrust_values.append(thrust)
         fuel_remaining.append(prop_remaining)
@@ -384,20 +272,19 @@ def simulate_3dof(
         position_list.append([x, y, z])
         velocity_vector_list.append([vx, vy, vz])
 
-        # ---- Advance state ----
         x, y, z = x_n, y_n, z_n
         vx, vy, vz = vx_n, vy_n, vz_n
         prop_remaining -= mass_used
         current_mass -= mass_used
         if current_mass < (intmass - propmass):
-            current_mass = intmass - propmass  # clamp to dry mass
+            current_mass = intmass - propmass  
         t += dt
 
         if prop_remaining <= 0:
             break
 
     logging.info(
-        "3-DOF simulation complete. t=%.2fs  max_alt=%.1fm  max_speed=%.1fm/s",
+        "Simulation Complete. t=%.2fs  max_alt=%.1fm  max_speed=%.1fm/s",
         t,
         max(altitude_values) if altitude_values else 0.0,
         max(velocity_values) if velocity_values else 0.0,
@@ -418,7 +305,6 @@ def simulate_3dof(
         "initial_thrust": initial_thrust if initial_thrust is not None else 0.0,
         "delta_v": delta_v,
         "simulation_complete": True,
-        # 3-D extras
         "position": position_list,
         "velocity_vector": velocity_vector_list,
     }
