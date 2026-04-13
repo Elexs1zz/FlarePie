@@ -671,9 +671,7 @@ class FlarePieApp:
 
             self.status_var.set("Running simulation...")
 
-            # ------------------------------------------------------------------
-            # Route to 3-DOF simulator when selected
-            # ------------------------------------------------------------------
+           
             if self.sim_mode_var.get() == "3-DOF":
                 thrust_csv = None
                 if self.thrust_mode_var.get() == "Thrust Curve CSV":
@@ -730,7 +728,6 @@ class FlarePieApp:
                     self.save_results(results)
                 self.status_var.set("3-DOF simulation complete")
                 return
-            # ------------------------------------------------------------------
 
             from Engine import get_atmospheric_pressure, calculate_drag
             k, R = {"RP1": (1.2, 287.0), "LH2": (1.4, 4124.0), "SRF": (1.2, 191.0), "N2O4": (1.26, 320.0)}[fuel_type]
@@ -812,7 +809,6 @@ class FlarePieApp:
                 current_altitude = altitude_new
                 time_elapsed += dt
                 iterations += 1
-                # Ensure after abort, rocket lands
                 if abort_triggered and current_altitude <= 0:
                     break
                 if thrust == 0.0 and propmass <= 0 and not abort_triggered:
@@ -1257,12 +1253,10 @@ class FlarePieApp:
 
     def undo(self):
         if self.undo_stack:
-            # Placeholder for undo functionality
             messagebox.showinfo("Info", "Undo functionality not implemented yet")
 
     def redo(self):
         if self.redo_stack:
-            # Placeholder for redo functionality
             messagebox.showinfo("Info", "Redo functionality not implemented yet")
 
     def show_preferences(self):
@@ -1383,7 +1377,6 @@ class FlarePieApp:
         fig = Figure(figsize=(8, 6))
         ax = fig.add_subplot(111, projection='3d')
 
-        # Use real 3-D position data if available (3-DOF mode)
         if self.simulation_data.get("position"):
             pos = self.simulation_data["position"]
             x_data = [p[0] for p in pos]
@@ -1391,7 +1384,7 @@ class FlarePieApp:
             z_data = [p[2] for p in pos]
             ax.set_xlabel('East (m)')
             ax.set_ylabel('North (m)')
-            ax.set_zlabel('Altitude (m)')  # type: ignore[attr-defined]
+            ax.set_zlabel('Altitude (m)')  
             ax.set_title('3D Trajectory (ENU Frame)')
             x_min, x_max = min(x_data), max(x_data)
             y_min, y_max = min(y_data), max(y_data)
@@ -1403,7 +1396,7 @@ class FlarePieApp:
                 y_min, y_max = y_min - 1, y_max + 1
             ax.set_xlim(x_min, x_max)
             ax.set_ylim(y_min, y_max)
-            ax.set_zlim(z_min, z_max)  # type: ignore[attr-defined]
+            ax.set_zlim(z_min, z_max)  
             line, = ax.plot([], [], [], color='cyan', linewidth=2)
             canvas = FigureCanvasTkAgg(fig, master=win)
             canvas.draw()
@@ -1411,31 +1404,30 @@ class FlarePieApp:
             def animate_3d(i):
                 idx = max(1, int(len(x_data) * i / 100))
                 line.set_data(x_data[:idx], y_data[:idx])
-                line.set_3d_properties(z_data[:idx])  # type: ignore[attr-defined]
+                line.set_3d_properties(z_data[:idx])  
                 return line,
             FuncAnimation(fig, animate_3d, frames=100, interval=50, blit=True, repeat=False)
             canvas.draw()
         else:
-            # Legacy fallback: axes are time / velocity / altitude
             time_data = self.simulation_data['time']
             altitude_data = self.simulation_data['altitude']
             velocity_data = self.simulation_data['velocity']
             line, = ax.plot([], [], [], color='cyan', linewidth=2)
             ax.set_xlabel('Time (s)')
             ax.set_ylabel('Velocity (m/s)')
-            ax.set_zlabel('Altitude (m)')  # type: ignore[attr-defined]
+            ax.set_zlabel('Altitude (m)') 
             ax.set_title('3D Trajectory (Time, Velocity, Altitude)')
             ax.grid(True)
             ax.set_xlim(float(min(time_data)), float(max(time_data)))
             ax.set_ylim(float(min(velocity_data)), float(max(velocity_data)))
-            ax.set_zlim(float(min(altitude_data)), float(max(altitude_data)))  # type: ignore[attr-defined]
+            ax.set_zlim(float(min(altitude_data)), float(max(altitude_data)))  
             canvas = FigureCanvasTkAgg(fig, master=win)
             canvas.draw()
             canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
             def animate(i):
                 idx = max(1, int(len(time_data) * i / 100))
                 line.set_data(time_data[:idx], velocity_data[:idx])
-                line.set_3d_properties(altitude_data[:idx])  # type: ignore[attr-defined]
+                line.set_3d_properties(altitude_data[:idx])  
                 return line,
             FuncAnimation(fig, animate, frames=100, interval=50, blit=True, repeat=False)
             canvas.draw()
@@ -1478,7 +1470,7 @@ class FlarePieApp:
         if not self.simulation_data:
             messagebox.showwarning("Warning", "No simulation data available")
             return
-        R_earth = 6371000  # meters
+        R_earth = 6371000  
         lat0 = np.radians(28.3922)
         lon0 = np.radians(-80.6077)
         alt = np.array(self.simulation_data['altitude'])
@@ -1500,7 +1492,7 @@ class FlarePieApp:
             url = "https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57730/land_ocean_ice_2048.png"
             urllib.request.urlretrieve(url, texture_path)
         img = plt.imread(texture_path)
-        # High-res sphere
+       
         n = 200
         u = np.linspace(0, 2 * np.pi, n)
         v = np.linspace(0, np.pi, n//2)
@@ -1508,11 +1500,11 @@ class FlarePieApp:
         xe = R_earth * np.cos(u) * np.sin(v)
         ye = R_earth * np.sin(u) * np.sin(v)
         ze = R_earth * np.cos(v)
-        # Map texture
+        
         lon_img = (u / (2 * np.pi) * img.shape[1]).astype(int) % img.shape[1]
         lat_img = (v / np.pi * img.shape[0]).astype(int) % img.shape[0]
         facecolors = img[lat_img, lon_img] / 255.0
-        ax.plot_surface(xe, ye, ze, rstride=2, cstride=2, facecolors=facecolors, linewidth=0, antialiased=False, shade=True)  # type: ignore[attr-defined]
+        ax.plot_surface(xe, ye, ze, rstride=2, cstride=2, facecolors=facecolors, linewidth=0, antialiased=False, shade=True)  
         eq_u = np.linspace(0, 2 * np.pi, 400)
         ax.plot(R_earth * np.cos(eq_u), R_earth * np.sin(eq_u), 0, color='w', linewidth=1, alpha=0.7)
 
@@ -1522,17 +1514,17 @@ class FlarePieApp:
         max_alt = max(alt) if len(alt) else 1000
         ax.set_xlim(-R_earth*1.1, R_earth*1.1)
         ax.set_ylim(-R_earth*1.1, R_earth*1.1)
-        ax.set_zlim(-R_earth*0.2, R_earth*1.2+max_alt)  # type: ignore[attr-defined]
+        ax.set_zlim(-R_earth*0.2, R_earth*1.2+max_alt)  
         ax.set_xlabel('X (m)')
         ax.set_ylabel('Y (m)')
-        ax.set_zlabel('Z (m)')  # type: ignore[attr-defined]
+        ax.set_zlabel('Z (m)')  
         ax.set_title('3D Trajectory over Earth', fontsize=14, fontweight='bold')
         ax.legend(loc='upper left')
         ax.grid(False)
         def animate(i):
             idx = max(1, int(len(x) * i / 100))
             traj_line.set_data(x[:idx], y[:idx])
-            traj_line.set_3d_properties(z[:idx])  # type: ignore[attr-defined]
+            traj_line.set_3d_properties(z[:idx])  
             return traj_line,
         anim = FuncAnimation(fig, animate, frames=100, interval=50, blit=True, repeat=False)
         canvas = FigureCanvasTkAgg(fig, master=win)
@@ -1722,7 +1714,7 @@ class FlarePieApp:
                 R = 287
                 ve = (2*k/(k-1)*R*Tc*(1-(101325/Pc)**((k-1)/k)))**0.5
                 mfr = area_throat * Pc / (ve * k)
-                expa = 101325  # Assume sea level exit pressure for now
+                expa = 101325  
                 self.nozzle_vars['ea'].set(f"{area_exit:.4f}")
                 self.nozzle_vars['mfr'].set(f"{mfr:.2f}")
                 self.nozzle_vars['ve'].set(f"{ve:.2f}")
@@ -1742,10 +1734,10 @@ class FlarePieApp:
             fin_tip = float(self.fin_tip_var.get())
             fin_span = float(self.fin_span_var.get())
             fin_num = int(self.fin_num_var.get())
-            # CG: assume uniform body, nose is lighter
+            
             cg_body = (L - nose_L/2) * (L - nose_L) / L + nose_L/2 * nose_L / L
             cg = cg_body
-            # CP: Barrowman (approx)
+           
             cp_nose = 0.666 * nose_L
             S_fin = 0.5 * (fin_root + fin_tip) * fin_span
             lf = L - nose_L
